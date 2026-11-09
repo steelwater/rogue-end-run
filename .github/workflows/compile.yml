@@ -1,0 +1,31 @@
+name: Arduboy compile smoke test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install AVR core and Arduboy2
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+          arduino-cli lib install Arduboy2
+      - name: Compile baseline ATmega32U4 target
+        run: arduino-cli compile --fqbn arduino:avr:leonardo --output-dir build RogueEndRun
+      - name: Report compiled size
+        run: |
+          ELF=$(find build -maxdepth 1 -type f -name '*.elf' -print -quit)
+          test -n "$ELF"
+          "$(arduino-cli config dump >/dev/null; find "$HOME/.arduino15/packages/arduino/tools/avr-gcc" -name avr-size -type f | head -1)" -C --mcu=atmega32u4 "$ELF"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rogue-end-run-m0-build
+          path: |
+            build/*.hex
+            build/*.elf
